@@ -10,7 +10,10 @@ def logistic_regression(
     y_test,
     penalty: Literal["l2", "l1", "elasticnet"] = "l2",
     C=1.0,
+    aggregation_method="mean",
 ):
+    X_train = aggregate(X_train, aggregation_method)
+    X_test = aggregate(X_test, aggregation_method)
     clf = LogisticRegression(
         class_weight="balanced",  # to handle imbalanced classes
         solver="saga",
@@ -26,15 +29,41 @@ def hyperparam_optimize(X_train, y_train, X_test, y_test):
     # hyperparameter optimization
     best_score = 0
     best_params = {}
-    for penalty in ["l1", "l2", "elasticnet"]:
-        for C in [0.001, 0.01, 0.1, 1, 10, 100]:
-            clf, score = logistic_regression(
-                X_train, y_train, X_test, y_test, penalty=penalty, C=C
-            )
-            if score > best_score:
-                best_score = score
-                best_params = {"penalty": penalty, "C": C}
+    for aggregation_method in ["mean", "last"]:
+        for penalty in ["l1", "l2", "elasticnet"]:
+            for C in [0.001, 0.01, 0.1, 1, 10, 100]:
+                clf, score = logistic_regression(
+                    X_train,
+                    y_train,
+                    X_test,
+                    y_test,
+                    penalty=penalty,
+                    C=C,
+                    aggregation_method=aggregation_method,
+                )
+                if score > best_score:
+                    best_score = score
+                    best_params = {"penalty": penalty, "C": C}
     return best_params, best_score
+
+
+def mean_aggregation(X):
+    return [x.mean(axis=0) for x in X]
+
+
+def last_aggregation(X):
+    return [x[-1] for x in X]
+
+
+def aggregate(X, method):
+    # X is a list of matrices of size (seq_len, n_feats)
+    # we need to contract it to vectors of size (n_feats,)
+    if method == "mean":
+        return mean_aggregation(X)
+    elif method == "last":
+        return last_aggregation(X)
+    else:
+        raise ValueError(f"Unknown aggregation method: {method}")
 
 
 def load_data(matrix_path, split_pct=0.8):
