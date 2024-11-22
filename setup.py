@@ -22,6 +22,7 @@ install_requires = [
     'torchattacks',
     'jupyter',
     'goodfire',
+    'scikit-learn'
 ]
 
 setup(
