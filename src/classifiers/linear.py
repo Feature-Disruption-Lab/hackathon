@@ -8,7 +8,9 @@ def whiten(X: np.ndarray) -> np.ndarray:
     # X is a array of matrices of size (n_feats)
     # make sure we are zero centered and unit variance
     X -= X.mean(axis=0)
-    X /= X.std(axis=0)
+    std = X.std(axis=0)
+    std[std == 0] = 1
+    X /= std
     return X
 
 
@@ -25,7 +27,7 @@ def split_data(X, y, split_pct=0.8):
 
 
 def mean_aggregation(X: list[np.ndarray]) -> np.ndarray:
-    return np.asarray([x.mean(axis=0) for x in X])
+    return np.stack([x.mean(axis=0) for x in X])
 
 
 def last_aggregation(X: list[np.ndarray]) -> np.ndarray:
@@ -95,12 +97,12 @@ def hyperparam_optimize(X, y):
 
 
 def load_data(matrix_path, seed=42):
-    # assume data will be in the format of a list of ('prompt', 'activation', 'label') tuples
+    # assume data will be in the format of a list of ('prompt', 'response', 'activation', 'label') tuples
     with open(matrix_path, "rb") as f:
         data = pickle.load(f)
 
-    X = [d[1] for d in data]
-    y = [d[2] for d in data]
+    X = [d[2] for d in data]
+    y = [d[3] for d in data]
 
     # random.seed(seed)
     # order = list(range(len(X)))
@@ -111,8 +113,56 @@ def load_data(matrix_path, seed=42):
     return X, y
 
 
+# def load_npz(filename: str):
+#     loaded = np.load(filename, allow_pickle=True)
+#     data = []
+#     i = 0
+#     while f"response_{i}" in loaded:
+
+#         sparse_matrix = sparse.coo_matrix(
+#             (
+#                 loaded[f"magnitudes_{i}"],
+#                 (loaded[f"token_indices_{i}"], loaded[f"feature_indices_{i}"]),
+#             )
+#         )
+#         # reconstructed = sparse_matrix.toarray()
+#         data.append(
+#             {
+#                 "prompt": str(loaded[f"prompt_{i}"]),
+#                 "response": str(loaded[f"response_{i}"]),
+#                 "features": sparse_matrix,
+#                 "label": str(loaded[f"label_{i}"]),
+#             }
+#         )
+#         i += 1
+#     return data
+
+
+def load_as_npz(filename: str):
+    loaded = np.load(filename, allow_pickle=True)
+    data = []
+    i = 0
+    while f"response_{i}" in loaded:
+        data.append(
+            {
+                "prompt": str(),
+                "response": str(loaded[f"response_{i}"]),
+                "features": loaded[f"dense_features_{i}"][None][0].toarray(),
+                "label": str(loaded[f"label_{i}"]),
+            }
+        )
+        i += 1
+    return data
+
+
+def extract_data(data):
+    X = [d["features"] for d in data]
+    y = [d["label"] for d in data]
+    return X, y
+
+
 def main(matrix_path):
-    X, y = load_data(matrix_path)
+    X, y = extract_data(load_as_npz(matrix_path))
     best_params, best_score, hyper_results = hyperparam_optimize(X, y)
     clf, score = logistic_regression(X, y, **best_params)
     _, _, _, _, X_test, y_test = preprocess_data(
@@ -120,3 +170,7 @@ def main(matrix_path):
     )
     test_score = clf.score(X_test, y_test)
     return clf, test_score, hyper_results
+
+
+if __name__ == "__main__":
+    main("./output_sparse.npz")

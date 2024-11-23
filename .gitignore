@@ -2,3 +2,10 @@
 local
 .DS_Store
 myenv
+src/mysecrets.py
+src/__pycache__/
+todo.md
+.env
+.env.local
+.env.*
+*.egg-info/
