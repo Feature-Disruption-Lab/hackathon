@@ -87,4 +87,4 @@ def main(save_path, config=None):
         with open(save_path, "w") as f:
             json.dump(results, f)
 
-        return results
+    return results
