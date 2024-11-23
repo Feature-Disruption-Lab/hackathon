@@ -3,5 +3,5 @@ local
 .DS_Store
 myenv
 src/mysecrets.py
-src/__pycache__/
+**/__pycache__
 todo.md
