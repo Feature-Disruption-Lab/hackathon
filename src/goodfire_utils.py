@@ -1,7 +1,7 @@
 from scipy.sparse import csr_matrix
 
 
-def run_conversation_through_goodfire(conversation: dict, variant, client):
+def run_conversation_through_goodfire(conversation: dict, variant, client, activations=True):
     variant.reset()
 
     response = ""
@@ -16,16 +16,23 @@ def run_conversation_through_goodfire(conversation: dict, variant, client):
     ):
         response += token.choices[0].delta.content
 
-    print(f"The response was: {response}\nGetting the activations for the same prompt")
     context = client.features.inspect(
         conversation,
         model=variant,
     )
-    activations = context.matrix(return_lookup=False)
-    dense_activations = csr_matrix(activations)
+    if activations:
+        print("Getting the activations for the same prompt")
+        activations = context.matrix(return_lookup=False)
+        dense_activations = csr_matrix(activations)
 
-    return {
+        return {
+            "prompt": conversation,
+            "response": response,
+            "features": dense_activations,
+        }
+    else:
+        print(f"The response was: {response}")
+        return {
         "prompt": conversation,
-        "response": response,
-        "features": dense_activations,
-    }
+        "response": response
+        }

@@ -1,4 +1,4 @@
-# Setup
+ Setup
 
 This is tested on mac and linux:
 
