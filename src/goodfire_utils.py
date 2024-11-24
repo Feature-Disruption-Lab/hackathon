@@ -6,8 +6,6 @@ def run_conversation_through_goodfire(conversation: dict, variant: goodfire.Vari
 
     response = ""
 
-    # print(f"Getting the response for the conversation: {conversation}")
-
     for token in client.chat.completions.create(
             conversation,
             model=variant,
@@ -21,7 +19,6 @@ def run_conversation_through_goodfire(conversation: dict, variant: goodfire.Vari
         model=variant,
     )
     if activations:
-        print("Getting the activations for the same prompt")
         activations = context.matrix(return_lookup=False)
         dense_activations = csr_matrix(activations)
 
@@ -31,10 +28,9 @@ def run_conversation_through_goodfire(conversation: dict, variant: goodfire.Vari
             "features": dense_activations,
         }
     else:
-        print(f"The response was: {response}")
         return {
-        "prompt": conversation,
-        "response": response
+            "prompt": conversation,
+            "response": response
         }
 
 def clone_variant(variant: goodfire.Variant):

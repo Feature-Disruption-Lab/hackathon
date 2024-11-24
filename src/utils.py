@@ -42,8 +42,10 @@ def retry_with_backoff(func: Callable[[],T], max_retries: int) -> T:
         try:
             return func()
         except Exception as e:
+            print(f"backoff got error: {e}")
             if "rate limit" in str(e).lower():
                 if retries < max_retries:
+                    print(f"sleeping for {retries} seconds")
                     sleep_time = 2**retries
                     print(
                         f"Rate limit encountered. Retrying in {sleep_time} seconds..."
