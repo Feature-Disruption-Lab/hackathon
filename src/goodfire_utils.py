@@ -1,7 +1,7 @@
 from scipy.sparse import csr_matrix
 
 
-def run_conversation_through_goodfire(conversation: dict, variant, client, activations=True):
+def run_conversation_through_goodfire(conversation: dict, variant, client, activations=True, max_tokens=40):
     variant.reset()
 
     response = ""
@@ -12,7 +12,7 @@ def run_conversation_through_goodfire(conversation: dict, variant, client, activ
             conversation,
             model=variant,
             stream=True,
-            max_completion_tokens=40,
+            max_completion_tokens=max_tokens,
     ):
         response += token.choices[0].delta.content
 
