@@ -76,7 +76,7 @@ def logistic_regression(
         C=C,
         **kwargs,
     )
-    clf.fit(X_train, y_train)
+    clf = clf.fit(X_train, y_train)
     return clf, clf.score(X_val, y_val)
 
 
