@@ -33,7 +33,7 @@ def run_conversation_through_goodfire(conversation: dict, variant: goodfire.Vari
     else:
         print(f"The response was: {response}")
         return {
-        "prompt": conversation
+        "prompt": conversation,
         "response": response
         }
 
