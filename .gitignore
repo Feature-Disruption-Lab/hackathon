@@ -5,3 +5,4 @@ myenv
 src/mysecrets.py
 **/__pycache__
 todo.md
+**/*.json
