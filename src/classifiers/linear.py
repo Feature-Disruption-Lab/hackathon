@@ -1,7 +1,9 @@
+import random
 from typing import Literal
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 import pickle
+from tqdm import tqdm
 
 
 def whiten(X: np.ndarray) -> np.ndarray:
@@ -46,8 +48,8 @@ def aggregate(X: list[np.ndarray], method: str) -> np.ndarray:
 
 
 def preprocess_data(X, y, aggregation_method="mean"):
-    X = aggregate(X, aggregation_method)
-    X = whiten(X)
+    # X = aggregate(X, aggregation_method)
+    # X = whiten(X)
     X_train, y_train, X_test, y_test, X_val, y_val = split_data(X, y)
     return X_train, y_train, X_test, y_test, X_val, y_val
 
@@ -62,6 +64,9 @@ def logistic_regression(
     X_train, y_train, X_test, y_test, X_val, y_val = preprocess_data(
         X, y, aggregation_method
     )
+    kwargs = {}
+    if penalty == "elasticnet":
+        kwargs = {"l1_ratio": 0.5}
 
     clf = LogisticRegression(
         class_weight="balanced",  # to handle imbalanced classes
@@ -69,6 +74,7 @@ def logistic_regression(
         n_jobs=-1,  # use all available
         penalty=penalty,
         C=C,
+        **kwargs,
     )
     clf.fit(X_train, y_train)
     return clf, clf.score(X_val, y_val)
@@ -77,22 +83,29 @@ def logistic_regression(
 def hyperparam_optimize(X, y):
     # hyperparameter optimization
     best_score = 0
+    best_nnz = 99999999
     best_params = {}
     hyper_results = {}
-    for aggregation_method in ["mean", "last"]:
-        for penalty in ["l1", "l2", "elasticnet"]:
-            for C in [0.001, 0.01, 0.1, 1, 10, 100]:
-                clf, score = logistic_regression(
-                    X,
-                    y,
-                    penalty=penalty,
-                    C=C,
-                    aggregation_method=aggregation_method,
-                )
-                if score > best_score:
-                    best_score = score
-                    best_params = {"penalty": penalty, "C": C}
-                hyper_results[(aggregation_method, penalty, C)] = score
+    hypers = []
+    # for aggregation_method in ["mean", "last"]:
+    for penalty in ["l1", "l2", "elasticnet"]:
+        for C in [0.001, 0.002, 0.003, 0.004, 0.008, 0.01]:
+            hypers.append((penalty, C))
+    for penalty, C in tqdm(hypers):
+        clf, score = logistic_regression(
+            X,
+            y,
+            penalty=penalty,
+            C=C,
+        )
+
+        nnz = np.count_nonzero(clf.coef_)
+        if score > best_score or (score == best_score and nnz < best_nnz):
+            print("new best: ", score, penalty, C, nnz)
+            best_score = score
+            best_params = {"penalty": penalty, "C": C}
+            best_nnz = nnz
+        hyper_results[(penalty, C)] = score
     return best_params, best_score, hyper_results
 
 
@@ -104,38 +117,7 @@ def load_data(matrix_path, seed=42):
     X = [d[2] for d in data]
     y = [d[3] for d in data]
 
-    # random.seed(seed)
-    # order = list(range(len(X)))
-    # random.shuffle(order)
-    # X = [X[i] for i in order]
-    # y = [y[i] for i in order]
-
     return X, y
-
-
-# def load_npz(filename: str):
-#     loaded = np.load(filename, allow_pickle=True)
-#     data = []
-#     i = 0
-#     while f"response_{i}" in loaded:
-
-#         sparse_matrix = sparse.coo_matrix(
-#             (
-#                 loaded[f"magnitudes_{i}"],
-#                 (loaded[f"token_indices_{i}"], loaded[f"feature_indices_{i}"]),
-#             )
-#         )
-#         # reconstructed = sparse_matrix.toarray()
-#         data.append(
-#             {
-#                 "prompt": str(loaded[f"prompt_{i}"]),
-#                 "response": str(loaded[f"response_{i}"]),
-#                 "features": sparse_matrix,
-#                 "label": str(loaded[f"label_{i}"]),
-#             }
-#         )
-#         i += 1
-#     return data
 
 
 def load_as_npz(filename: str):
@@ -152,22 +134,26 @@ def load_as_npz(filename: str):
             }
         )
         i += 1
+
+    random.shuffle(data)
     return data
 
 
 def extract_data(data):
     X = [d["features"] for d in data]
     y = [d["label"] for d in data]
+    X = aggregate(X, "mean")
+    X = whiten(X)
     return X, y
 
 
 def main(matrix_path):
     X, y = extract_data(load_as_npz(matrix_path))
+    print("Data loaded:", len(X))
+    print("Hyperparam optimization...")
     best_params, best_score, hyper_results = hyperparam_optimize(X, y)
     clf, score = logistic_regression(X, y, **best_params)
-    _, _, _, _, X_test, y_test = preprocess_data(
-        X, y, best_params["aggregation_method"]
-    )
+    _, _, _, _, X_test, y_test = preprocess_data(X, y)
     test_score = clf.score(X_test, y_test)
     return clf, test_score, hyper_results
 
